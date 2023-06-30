@@ -8,13 +8,13 @@ namespace Commandline {
 
 #define COMMANDLINE_ENABLE_THREADS 1
 
-/// object_creator - Helper method for ManagedStatic.
+/// ObjectCreator - Helper method for ManagedStatic.
 template <class C>
 struct ObjectCreator {
   static auto call() -> void* { return new C(); }
 };
 
-/// object_deleter - Helper method for ManagedStatic.
+/// ObjectDeleter - Helper method for ManagedStatic.
 template <typename T>
 struct ObjectDeleter {
   static void call(void* ptr) { delete (T*)ptr; }

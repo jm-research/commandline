@@ -17,6 +17,9 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   add_compile_options(-fstandalone-debug)
 endif()
 
+include(CTest)
+enable_testing()
+
 # apt install llvm-15-dev libclang-15-dev
 set(LLVM_DIR /usr/lib/llvm-15/lib/cmake/llvm)
 set(Clang_DIR /usr/lib/llvm-15/lib/cmake/clang)
@@ -47,8 +50,4 @@ target_link_libraries(${STATIC_LIB_NAME}
   LLVMCore
 )
 
-#add_executable(format_test main.cpp)
-#target_link_libraries(format_test
-#  LLVMSupport
-#  LLVMOption
-#)
+add_subdirectory(test)
