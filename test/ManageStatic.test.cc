@@ -43,9 +43,7 @@ TEST(Initialize, MultipleThreads) {
 namespace NestedStatics {
 static ManagedStatic<int> ms1;
 struct Nest {
-  Nest() {
-    ++(*ms1);
-  }
+  Nest() { ++(*ms1); }
 
   ~Nest() {
     assert(ms1.isConstructed());
@@ -63,31 +61,39 @@ TEST(ManagedStaticTest, NestedStatics) {
   EXPECT_TRUE(ms1.isConstructed());
   EXPECT_TRUE(ms2.isConstructed());
 }
-} // namespace NestedStatics
+}  // namespace NestedStatics
 
 namespace CustomCreatorDeletor {
 
+static int destructor_count = 0;
+
 struct CustomCreate {
-  static auto call() -> void * {
-    void *mem = llvm::safe_malloc(sizeof(int));
-    *((int *)mem) = 42;
+  static auto call() -> void* {
+    void* mem = llvm::safe_malloc(sizeof(int));
+    *((int*)mem) = 42;
     return mem;
   }
 };
 
 struct CustomDelete {
-  static void call(void *p) { std::free(p); }
+  static void call(void* p) {
+    std::free(p);
+    destructor_count = 123;
+  }
 };
 
-static ManagedStatic<int, CustomCreate, CustomDelete> custom;
-
 TEST(ManagedStaticTest, CustomCreatorDeletor) {
-  EXPECT_EQ(42, *custom);
-  custom.destroy();
-  EXPECT_FALSE(custom.isConstructed());
+  {
+    static ManagedStatic<int, CustomCreate, CustomDelete> custom;
+    CommandlineShutdownObj shutdown;
+
+    EXPECT_EQ(42, *custom);
+  }
+
+  EXPECT_EQ(destructor_count, 123);
 }
 
-} // namespace CustomCreatorDeletor
+}  // namespace CustomCreatorDeletor
 
 }  // namespace
 
