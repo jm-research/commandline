@@ -2,14 +2,10 @@
 #define COMMANDLINE_OPT_H
 
 #include "Parser.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace Commandline {
-
-class Option;
-
-template <class DataType>
-class OptionValue;
 
 //===----------------------------------------------------------------------===//
 // Default storage class definition: external storage.  This implementation
@@ -124,8 +120,8 @@ class opt
       public opt_storage<DataType, ExternalStorage, std::is_class_v<DataType>> {
   ParserClass Parser;
 
-  bool handleOccurrence(unsigned pos, StringRef ArgName,
-                        StringRef Arg) override {
+  bool handleOccurrence(unsigned pos, llvm::StringRef ArgName,
+                        llvm::StringRef Arg) override {
     typename ParserClass::parser_data_type Val =
         typename ParserClass::parser_data_type();
     if (Parser.parse(*this, ArgName, Arg, Val))
@@ -140,7 +136,8 @@ class opt
     return Parser.getValueExpectedFlagDefault();
   }
 
-  void getExtraOptionNames(SmallVectorImpl<StringRef>& OptionNames) override {
+  void getExtraOptionNames(
+      llvm::SmallVectorImpl<llvm::StringRef>& OptionNames) override {
     return Parser.getExtraOptionNames(OptionNames);
   }
 
@@ -155,8 +152,8 @@ class opt
 
   void printOptionValue(size_t GlobalWidth, bool Force) const override {
     if (Force || this->getDefault().compare(this->getValue())) {
-      cl::printOptionDiff<ParserClass>(*this, Parser, this->getValue(),
-                                       this->getDefault(), GlobalWidth);
+      printOptionDiff<ParserClass>(*this, Parser, this->getValue(),
+                                   this->getDefault(), GlobalWidth);
     }
   }
 
@@ -197,8 +194,7 @@ class opt
   }
 
   template <class... Mods>
-  explicit opt(const Mods&... Ms)
-      : Option(llvm::cl::Optional, NotHidden), Parser(*this) {
+  explicit opt(const Mods&... Ms) : Option(Optional, NotHidden), Parser(*this) {
     apply(this, Ms...);
     done();
   }

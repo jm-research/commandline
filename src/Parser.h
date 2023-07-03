@@ -1,6 +1,11 @@
 #ifndef COMMANDLEINE_PARSER_H
 #define COMMANDLEINE_PARSER_H
 
+#include "Option.h"
+#include "OptionValue.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/Twine.h"
+
 namespace Commandline {
 
 //===----------------------------------------------------------------------===//
@@ -19,14 +24,14 @@ class generic_parser_base {
  protected:
   class GenericOptionInfo {
    public:
-    GenericOptionInfo(llvm::StringRef name, llvm::StringRef helpStr)
-        : Name(name), HelpStr(helpStr) {}
+    GenericOptionInfo(llvm::StringRef name, llvm::StringRef help_str)
+        : Name(name), HelpStr(help_str) {}
     llvm::StringRef Name;
     llvm::StringRef HelpStr;
   };
 
  public:
-  generic_parser_base(Option& O) : Owner(O) {}
+  generic_parser_base(Option& o) : Owner(o) {}
 
   virtual ~generic_parser_base() = default;
   // Base class should have virtual-destructor
@@ -34,52 +39,55 @@ class generic_parser_base {
   // Virtual function implemented by generic subclass to indicate how many
   // entries are in Values.
   //
-  virtual unsigned getNumOptions() const = 0;
+  virtual auto getNumOptions() const -> unsigned = 0;
 
   // Return option name N.
-  virtual llvm::StringRef getOption(unsigned N) const = 0;
+  virtual auto getOption(unsigned n) const -> llvm::StringRef = 0;
 
   // Return description N
-  virtual llvm::StringRef getDescription(unsigned N) const = 0;
+  virtual auto getDescription(unsigned n) const -> llvm::StringRef = 0;
 
   // Return the width of the option tag for printing...
-  virtual size_t getOptionWidth(const Option& O) const;
+  virtual auto getOptionWidth(const Option& o) const -> size_t;
 
-  virtual const GenericOptionValue& getOptionValue(unsigned N) const = 0;
+  virtual auto getOptionValue(unsigned n) const
+      -> const GenericOptionValue& = 0;
 
   // Print out information about this option. The to-be-maintained width is
   // specified.
   //
-  virtual void printOptionInfo(const Option& O, size_t GlobalWidth) const;
+  virtual void printOptionInfo(const Option& o, size_t global_width) const;
 
-  void printGenericOptionDiff(const Option& O, const GenericOptionValue& V,
+  void printGenericOptionDiff(const Option& o, const GenericOptionValue& v,
                               const GenericOptionValue& Default,
-                              size_t GlobalWidth) const;
+                              size_t global_width) const;
 
   // Print the value of an option and it's default.
   //
   // Template definition ensures that the option and default have the same
   // DataType (via the same AnyOptionValue).
   template <class AnyOptionValue>
-  void printOptionDiff(const Option& O, const AnyOptionValue& V,
+  void printOptionDiff(const Option& o, const AnyOptionValue& v,
                        const AnyOptionValue& Default,
-                       size_t GlobalWidth) const {
-    printGenericOptionDiff(O, V, Default, GlobalWidth);
+                       size_t global_width) const {
+    printGenericOptionDiff(o, v, Default, global_width);
   }
 
   void initialize() {}
 
   void getExtraOptionNames(
-      llvm::SmallVectorImpl<llvm::StringRef>& OptionNames) {
+      llvm::SmallVectorImpl<llvm::StringRef>& option_names) {
     // If there has been no argstr specified, that means that we need to add an
     // argument for every possible option.  This ensures that our options are
     // vectored to us.
-    if (!Owner.hasArgStr())
-      for (unsigned i = 0, e = getNumOptions(); i != e; ++i)
-        OptionNames.push_back(getOption(i));
+    if (!Owner.hasArgStr()) {
+      for (unsigned i = 0, e = getNumOptions(); i != e; ++i) {
+        option_names.push_back(getOption(i));
+      }
+    }
   }
 
-  enum ValueExpected getValueExpectedFlagDefault() const {
+  auto getValueExpectedFlagDefault() const -> enum ValueExpected {
     // If there is an ArgStr specified, then we are of the form:
     //
     //    -opt=O2   or   -opt O2  or  -optO2
@@ -91,16 +99,13 @@ class generic_parser_base {
     //
     // If this is the case, we cannot allow a value.
     //
-    if (Owner.hasArgStr())
-      return ValueRequired;
-    else
-      return ValueDisallowed;
+    if (Owner.hasArgStr()) return ValueRequired; else return ValueDisallowed;
   }
 
   // Return the option number corresponding to the specified
   // argument string.  If the option is not found, getNumOptions() is returned.
   //
-  unsigned findOption(llvm::StringRef Name);
+  auto findOption(llvm::StringRef name) -> unsigned;
 
  protected:
   Option& Owner;
@@ -117,67 +122,71 @@ class parser : public generic_parser_base {
  protected:
   class OptionInfo : public GenericOptionInfo {
    public:
-    OptionInfo(llvm::StringRef name, DataType v, llvm::StringRef helpStr)
-        : GenericOptionInfo(name, helpStr), V(v) {}
+    OptionInfo(llvm::StringRef name, DataType v, llvm::StringRef help_str)
+        : GenericOptionInfo(name, help_str), V(v) {}
 
     OptionValue<DataType> V;
   };
   llvm::SmallVector<OptionInfo, 8> Values;
 
  public:
-  parser(Option& O) : generic_parser_base(O) {}
+  parser(Option& o) : generic_parser_base(o) {}
 
   using parser_data_type = DataType;
 
   // Implement virtual functions needed by generic_parser_base
-  unsigned getNumOptions() const override { return unsigned(Values.size()); }
-  llvm::StringRef getOption(unsigned N) const override {
-    return Values[N].Name;
+  auto getNumOptions() const -> unsigned override {
+    return unsigned(Values.size());
   }
-  llvm::StringRef getDescription(unsigned N) const override {
-    return Values[N].HelpStr;
+  auto getOption(unsigned n) const -> llvm::StringRef override {
+    return Values[n].Name;
+  }
+  auto getDescription(unsigned n) const -> llvm::StringRef override {
+    return Values[n].HelpStr;
   }
 
   // Return the value of option name N.
-  const GenericOptionValue& getOptionValue(unsigned N) const override {
-    return Values[N].V;
+  auto getOptionValue(unsigned n) const -> const GenericOptionValue& override {
+    return Values[n].V;
   }
 
   // Return true on error.
-  bool parse(Option& O, llvm::StringRef ArgName, llvm::StringRef Arg,
-             DataType& V) {
-    llvm::StringRef ArgVal;
-    if (Owner.hasArgStr())
-      ArgVal = Arg;
-    else
-      ArgVal = ArgName;
+  auto parse(Option& o, llvm::StringRef arg_name, llvm::StringRef arg,
+             DataType& v) -> bool {
+    llvm::StringRef arg_val;
+    if (Owner.hasArgStr()) {
+      arg_val = arg;
+    } else {
+      arg_val = arg_name;
+    }
 
-    for (size_t i = 0, e = Values.size(); i != e; ++i)
-      if (Values[i].Name == ArgVal) {
-        V = Values[i].V.getValue();
+    for (size_t i = 0, e = Values.size(); i != e; ++i) {
+      if (Values[i].Name == arg_val) {
+        v = Values[i].V.getValue();
         return false;
       }
+    }
 
-    return O.error("Cannot find option named '" + ArgVal + "'!");
+    return o.error("Cannot find option named '" + arg_val + "'!");
   }
 
   /// Add an entry to the mapping table.
   ///
   template <class DT>
-  void addLiteralOption(llvm::StringRef Name, const DT& V,
-                        llvm::StringRef HelpStr) {
-    assert(findOption(Name) == Values.size() && "Option already exists!");
-    OptionInfo X(Name, static_cast<DataType>(V), HelpStr);
-    Values.push_back(X);
-    AddLiteralOption(Owner, Name);
+  void addLiteralOption(llvm::StringRef name, const DT& v,
+                        llvm::StringRef help_str) {
+    assert(findOption(name) == Values.size() && "Option already exists!");
+    OptionInfo x(name, static_cast<DataType>(v), help_str);
+    Values.push_back(x);
+    AddLiteralOption(Owner, name);
   }
 
   /// Remove the specified option.
   ///
-  void removeLiteralOption(llvm::StringRef Name) {
-    unsigned N = findOption(Name);
-    assert(N != Values.size() && "Option not found!");
-    Values.erase(Values.begin() + N);
+  void removeLiteralOption(llvm::StringRef name) {
+    unsigned n = findOption(name);
+    assert(n != Values.size() && "Option not found!");
+    Values.erase(Values.begin() + n);
   }
 };
 
@@ -186,38 +195,38 @@ class parser : public generic_parser_base {
 //
 class basic_parser_impl {  // non-template implementation of basic_parser<t>
  public:
-  basic_parser_impl(Option&) {}
+  basic_parser_impl(Option& /*unused*/) {}
 
   virtual ~basic_parser_impl() = default;
 
-  enum ValueExpected getValueExpectedFlagDefault() const {
+  auto getValueExpectedFlagDefault() const -> enum ValueExpected {
     return ValueRequired;
   }
 
-  void getExtraOptionNames(llvm::SmallVectorImpl<llvm::StringRef>&) {}
+  void getExtraOptionNames(llvm::SmallVectorImpl<llvm::StringRef>& /*unused*/) {}
 
   void initialize() {}
 
   // Return the width of the option tag for printing...
-  size_t getOptionWidth(const Option& O) const;
+  auto getOptionWidth(const Option& o) const -> size_t;
 
   // Print out information about this option. The to-be-maintained width is
   // specified.
   //
-  void printOptionInfo(const Option& O, size_t GlobalWidth) const;
+  void printOptionInfo(const Option& o, size_t global_width) const;
 
   // Print a placeholder for options that don't yet support printOptionDiff().
-  void printOptionNoValue(const Option& O, size_t GlobalWidth) const;
+  void printOptionNoValue(const Option& o, size_t global_width) const;
 
   // Overload in subclass to provide a better default value.
-  virtual llvm::StringRef getValueName() const { return "value"; }
+  virtual auto getValueName() const -> llvm::StringRef { return "value"; }
 
   // An out-of-line virtual method to provide a 'home' for this class.
   virtual void anchor();
 
  protected:
   // A helper for basic_parser::printOptionDiff.
-  void printOptionName(const Option& O, size_t GlobalWidth) const;
+  void printOptionName(const Option& o, size_t global_width) const;
 };
 
 // The real basic parser is just a template wrapper that provides a typedef for
@@ -229,7 +238,7 @@ class basic_parser : public basic_parser_impl {
   using parser_data_type = DataType;
   using OptVal = OptionValue<DataType>;
 
-  basic_parser(Option& O) : basic_parser_impl(O) {}
+  basic_parser(Option& o) : basic_parser_impl(o) {}
 };
 
 //--------------------------------------------------
@@ -239,23 +248,23 @@ extern template class basic_parser<bool>;
 template <>
 class parser<bool> : public basic_parser<bool> {
  public:
-  parser(Option& O) : basic_parser(O) {}
+  parser(Option& o) : basic_parser(o) {}
 
   // Return true on error.
-  bool parse(Option& O, llvm::StringRef ArgName, llvm::StringRef Arg,
-             bool& Val);
+  auto parse(Option& o, llvm::StringRef arg_name, llvm::StringRef arg,
+             bool& val) -> bool;
 
   void initialize() {}
 
-  enum ValueExpected getValueExpectedFlagDefault() const {
+  auto getValueExpectedFlagDefault() const -> enum ValueExpected {
     return ValueOptional;
   }
 
   // Do not print =<value> at all.
-  llvm::StringRef getValueName() const override { return llvm::StringRef(); }
+  auto getValueName() const -> llvm::StringRef override { return llvm::StringRef(); }
 
-  void printOptionDiff(const Option& O, bool V, OptVal Default,
-                       size_t GlobalWidth) const;
+  void printOptionDiff(const Option& o, bool v, OptVal Default,
+                       size_t global_width) const;
 
   // An out-of-line virtual method to provide a 'home' for this class.
   void anchor() override;
@@ -268,21 +277,21 @@ extern template class basic_parser<boolOrDefault>;
 template <>
 class parser<boolOrDefault> : public basic_parser<boolOrDefault> {
  public:
-  parser(Option& O) : basic_parser(O) {}
+  parser(Option& o) : basic_parser(o) {}
 
   // Return true on error.
-  bool parse(Option& O, llvm::StringRef ArgName, llvm::StringRef Arg,
-             boolOrDefault& Val);
+  auto parse(Option& o, llvm::StringRef arg_name, llvm::StringRef arg,
+             boolOrDefault& val) -> bool;
 
-  enum ValueExpected getValueExpectedFlagDefault() const {
+  auto getValueExpectedFlagDefault() const -> enum ValueExpected {
     return ValueOptional;
   }
 
   // Do not print =<value> at all.
-  llvm::StringRef getValueName() const override { return llvm::StringRef(); }
+  auto getValueName() const -> llvm::StringRef override { return llvm::StringRef(); }
 
-  void printOptionDiff(const Option& O, boolOrDefault V, OptVal Default,
-                       size_t GlobalWidth) const;
+  void printOptionDiff(const Option& o, boolOrDefault v, OptVal Default,
+                       size_t global_width) const;
 
   // An out-of-line virtual method to provide a 'home' for this class.
   void anchor() override;
@@ -295,16 +304,16 @@ extern template class basic_parser<int>;
 template <>
 class parser<int> : public basic_parser<int> {
  public:
-  parser(Option& O) : basic_parser(O) {}
+  parser(Option& o) : basic_parser(o) {}
 
   // Return true on error.
-  bool parse(Option& O, llvm::StringRef ArgName, llvm::StringRef Arg, int& Val);
+  auto parse(Option& o, llvm::StringRef arg_name, llvm::StringRef arg, int& val) -> bool;
 
   // Overload in subclass to provide a better default value.
-  llvm::StringRef getValueName() const override { return "int"; }
+  auto getValueName() const -> llvm::StringRef override { return "int"; }
 
-  void printOptionDiff(const Option& O, int V, OptVal Default,
-                       size_t GlobalWidth) const;
+  void printOptionDiff(const Option& o, int v, OptVal Default,
+                       size_t global_width) const;
 
   // An out-of-line virtual method to provide a 'home' for this class.
   void anchor() override;
@@ -317,17 +326,17 @@ extern template class basic_parser<long>;
 template <>
 class parser<long> final : public basic_parser<long> {
  public:
-  parser(Option& O) : basic_parser(O) {}
+  parser(Option& o) : basic_parser(o) {}
 
   // Return true on error.
-  bool parse(Option& O, llvm::StringRef ArgName, llvm::StringRef Arg,
-             long& Val);
+  auto parse(Option& o, llvm::StringRef arg_name, llvm::StringRef arg,
+             long& val) -> bool;
 
   // Overload in subclass to provide a better default value.
-  llvm::StringRef getValueName() const override { return "long"; }
+  auto getValueName() const -> llvm::StringRef override { return "long"; }
 
-  void printOptionDiff(const Option& O, long V, OptVal Default,
-                       size_t GlobalWidth) const;
+  void printOptionDiff(const Option& o, long v, OptVal Default,
+                       size_t global_width) const;
 
   // An out-of-line virtual method to provide a 'home' for this class.
   void anchor() override;
@@ -340,17 +349,17 @@ extern template class basic_parser<long long>;
 template <>
 class parser<long long> : public basic_parser<long long> {
  public:
-  parser(Option& O) : basic_parser(O) {}
+  parser(Option& o) : basic_parser(o) {}
 
   // Return true on error.
-  bool parse(Option& O, llvm::StringRef ArgName, llvm::StringRef Arg,
-             long long& Val);
+  auto parse(Option& o, llvm::StringRef arg_name, llvm::StringRef arg,
+             long long& val) -> bool;
 
   // Overload in subclass to provide a better default value.
-  llvm::StringRef getValueName() const override { return "long"; }
+  auto getValueName() const -> llvm::StringRef override { return "long"; }
 
-  void printOptionDiff(const Option& O, long long V, OptVal Default,
-                       size_t GlobalWidth) const;
+  void printOptionDiff(const Option& o, long long v, OptVal Default,
+                       size_t global_width) const;
 
   // An out-of-line virtual method to provide a 'home' for this class.
   void anchor() override;
@@ -363,17 +372,17 @@ extern template class basic_parser<unsigned>;
 template <>
 class parser<unsigned> : public basic_parser<unsigned> {
  public:
-  parser(Option& O) : basic_parser(O) {}
+  parser(Option& o) : basic_parser(o) {}
 
   // Return true on error.
-  bool parse(Option& O, llvm::StringRef ArgName, llvm::StringRef Arg,
-             unsigned& Val);
+  auto parse(Option& o, llvm::StringRef arg_name, llvm::StringRef arg,
+             unsigned& val) -> bool;
 
   // Overload in subclass to provide a better default value.
-  llvm::StringRef getValueName() const override { return "uint"; }
+  auto getValueName() const -> llvm::StringRef override { return "uint"; }
 
-  void printOptionDiff(const Option& O, unsigned V, OptVal Default,
-                       size_t GlobalWidth) const;
+  void printOptionDiff(const Option& o, unsigned v, OptVal Default,
+                       size_t global_width) const;
 
   // An out-of-line virtual method to provide a 'home' for this class.
   void anchor() override;
@@ -386,17 +395,17 @@ extern template class basic_parser<unsigned long>;
 template <>
 class parser<unsigned long> final : public basic_parser<unsigned long> {
  public:
-  parser(Option& O) : basic_parser(O) {}
+  parser(Option& o) : basic_parser(o) {}
 
   // Return true on error.
-  bool parse(Option& O, llvm::StringRef ArgName, llvm::StringRef Arg,
-             unsigned long& Val);
+  auto parse(Option& o, llvm::StringRef arg_name, llvm::StringRef arg,
+             unsigned long& val) -> bool;
 
   // Overload in subclass to provide a better default value.
-  llvm::StringRef getValueName() const override { return "ulong"; }
+  auto getValueName() const -> llvm::StringRef override { return "ulong"; }
 
-  void printOptionDiff(const Option& O, unsigned long V, OptVal Default,
-                       size_t GlobalWidth) const;
+  void printOptionDiff(const Option& o, unsigned long v, OptVal Default,
+                       size_t global_width) const;
 
   // An out-of-line virtual method to provide a 'home' for this class.
   void anchor() override;
@@ -409,17 +418,17 @@ extern template class basic_parser<unsigned long long>;
 template <>
 class parser<unsigned long long> : public basic_parser<unsigned long long> {
  public:
-  parser(Option& O) : basic_parser(O) {}
+  parser(Option& o) : basic_parser(o) {}
 
   // Return true on error.
-  bool parse(Option& O, llvm::StringRef ArgName, llvm::StringRef Arg,
-             unsigned long long& Val);
+  auto parse(Option& o, llvm::StringRef arg_name, llvm::StringRef arg,
+             unsigned long long& val) -> bool;
 
   // Overload in subclass to provide a better default value.
-  llvm::StringRef getValueName() const override { return "ulong"; }
+  auto getValueName() const -> llvm::StringRef override { return "ulong"; }
 
-  void printOptionDiff(const Option& O, unsigned long long V, OptVal Default,
-                       size_t GlobalWidth) const;
+  void printOptionDiff(const Option& o, unsigned long long v, OptVal Default,
+                       size_t global_width) const;
 
   // An out-of-line virtual method to provide a 'home' for this class.
   void anchor() override;
@@ -432,17 +441,17 @@ extern template class basic_parser<double>;
 template <>
 class parser<double> : public basic_parser<double> {
  public:
-  parser(Option& O) : basic_parser(O) {}
+  parser(Option& o) : basic_parser(o) {}
 
   // Return true on error.
-  bool parse(Option& O, llvm::StringRef ArgName, llvm::StringRef Arg,
-             double& Val);
+  auto parse(Option& o, llvm::StringRef arg_name, llvm::StringRef arg,
+             double& val) -> bool;
 
   // Overload in subclass to provide a better default value.
-  llvm::StringRef getValueName() const override { return "number"; }
+  auto getValueName() const -> llvm::StringRef override { return "number"; }
 
-  void printOptionDiff(const Option& O, double V, OptVal Default,
-                       size_t GlobalWidth) const;
+  void printOptionDiff(const Option& o, double v, OptVal Default,
+                       size_t global_width) const;
 
   // An out-of-line virtual method to provide a 'home' for this class.
   void anchor() override;
@@ -455,17 +464,17 @@ extern template class basic_parser<float>;
 template <>
 class parser<float> : public basic_parser<float> {
  public:
-  parser(Option& O) : basic_parser(O) {}
+  parser(Option& o) : basic_parser(o) {}
 
   // Return true on error.
-  bool parse(Option& O, llvm::StringRef ArgName, llvm::StringRef Arg,
-             float& Val);
+  auto parse(Option& o, llvm::StringRef arg_name, llvm::StringRef arg,
+             float& val) -> bool;
 
   // Overload in subclass to provide a better default value.
-  llvm::StringRef getValueName() const override { return "number"; }
+  auto getValueName() const -> llvm::StringRef override { return "number"; }
 
-  void printOptionDiff(const Option& O, float V, OptVal Default,
-                       size_t GlobalWidth) const;
+  void printOptionDiff(const Option& o, float v, OptVal Default,
+                       size_t global_width) const;
 
   // An out-of-line virtual method to provide a 'home' for this class.
   void anchor() override;
@@ -478,20 +487,20 @@ extern template class basic_parser<std::string>;
 template <>
 class parser<std::string> : public basic_parser<std::string> {
  public:
-  parser(Option& O) : basic_parser(O) {}
+  parser(Option& o) : basic_parser(o) {}
 
   // Return true on error.
-  bool parse(Option&, llvm::StringRef, llvm::StringRef Arg,
-             std::string& Value) {
-    Value = Arg.str();
+  auto parse(Option&, llvm::StringRef, llvm::StringRef arg,
+             std::string& value) -> bool {
+    value = arg.str();
     return false;
   }
 
   // Overload in subclass to provide a better default value.
-  llvm::StringRef getValueName() const override { return "string"; }
+  auto getValueName() const -> llvm::StringRef override { return "string"; }
 
-  void printOptionDiff(const Option& O, llvm::StringRef V,
-                       const OptVal& Default, size_t GlobalWidth) const;
+  void printOptionDiff(const Option& o, llvm::StringRef v,
+                       const OptVal& Default, size_t global_width) const;
 
   // An out-of-line virtual method to provide a 'home' for this class.
   void anchor() override;
@@ -504,19 +513,19 @@ extern template class basic_parser<char>;
 template <>
 class parser<char> : public basic_parser<char> {
  public:
-  parser(Option& O) : basic_parser(O) {}
+  parser(Option& o) : basic_parser(o) {}
 
   // Return true on error.
-  bool parse(Option&, llvm::StringRef, llvm::StringRef Arg, char& Value) {
-    Value = Arg[0];
+  auto parse(Option&, llvm::StringRef, llvm::StringRef arg, char& value) -> bool {
+    value = arg[0];
     return false;
   }
 
   // Overload in subclass to provide a better default value.
-  llvm::StringRef getValueName() const override { return "char"; }
+  auto getValueName() const -> llvm::StringRef override { return "char"; }
 
-  void printOptionDiff(const Option& O, char V, OptVal Default,
-                       size_t GlobalWidth) const;
+  void printOptionDiff(const Option& o, char v, OptVal Default,
+                       size_t global_width) const;
 
   // An out-of-line virtual method to provide a 'home' for this class.
   void anchor() override;

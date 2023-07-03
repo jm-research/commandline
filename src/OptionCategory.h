@@ -5,8 +5,6 @@
 
 namespace Commandline {
 
-//===----------------------------------------------------------------------===//
-//
 class OptionCategory {
  private:
   llvm::StringRef const Name;

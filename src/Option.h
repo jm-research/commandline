@@ -1,19 +1,18 @@
 #ifndef COMMANDLINE_OPTION_H
 #define COMMANDLINE_OPTION_H
 
+#include "OptionCategory.h"
 #include "OptionEnum.h"
-
-
+#include "SubCommand.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace Commandline {
-
-class OptionCategory;
 
 //===----------------------------------------------------------------------===//
 //

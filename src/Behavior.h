@@ -4,9 +4,10 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 
+#include "Option.h"
+
 namespace Commandline {
 
-class Option;
 class OptionCategory;
 class SubCommand;
 
@@ -39,11 +40,11 @@ struct value_desc {
 template <class Ty>
 struct Initializer {
   const Ty& Init;
-  Initializer(const Ty& Val) : Init(Val) {}
+  Initializer(const Ty& val) : Init(val) {}
 
   template <class Opt>
-  void apply(Opt& O) const {
-    O.setInitialValue(Init);
+  void apply(Opt& o) const {
+    o.setInitialValue(Init);
   }
 };
 
