@@ -1,5 +1,5 @@
-#ifndef COMMANDLEINE_PARSER_H
-#define COMMANDLEINE_PARSER_H
+#ifndef COMMANDLINE_PARSER_H
+#define COMMANDLINE_PARSER_H
 
 #include "Option.h"
 #include "OptionValue.h"
@@ -203,7 +203,8 @@ class basic_parser_impl {  // non-template implementation of basic_parser<t>
     return ValueRequired;
   }
 
-  void getExtraOptionNames(llvm::SmallVectorImpl<llvm::StringRef>& /*unused*/) {}
+  void getExtraOptionNames(llvm::SmallVectorImpl<llvm::StringRef>& /*unused*/) {
+  }
 
   void initialize() {}
 
@@ -261,7 +262,9 @@ class parser<bool> : public basic_parser<bool> {
   }
 
   // Do not print =<value> at all.
-  auto getValueName() const -> llvm::StringRef override { return llvm::StringRef(); }
+  auto getValueName() const -> llvm::StringRef override {
+    return llvm::StringRef();
+  }
 
   void printOptionDiff(const Option& o, bool v, OptVal Default,
                        size_t global_width) const;
@@ -288,7 +291,9 @@ class parser<boolOrDefault> : public basic_parser<boolOrDefault> {
   }
 
   // Do not print =<value> at all.
-  auto getValueName() const -> llvm::StringRef override { return llvm::StringRef(); }
+  auto getValueName() const -> llvm::StringRef override {
+    return llvm::StringRef();
+  }
 
   void printOptionDiff(const Option& o, boolOrDefault v, OptVal Default,
                        size_t global_width) const;
@@ -307,7 +312,8 @@ class parser<int> : public basic_parser<int> {
   parser(Option& o) : basic_parser(o) {}
 
   // Return true on error.
-  auto parse(Option& o, llvm::StringRef arg_name, llvm::StringRef arg, int& val) -> bool;
+  auto parse(Option& o, llvm::StringRef arg_name, llvm::StringRef arg, int& val)
+      -> bool;
 
   // Overload in subclass to provide a better default value.
   auto getValueName() const -> llvm::StringRef override { return "int"; }
@@ -490,8 +496,8 @@ class parser<std::string> : public basic_parser<std::string> {
   parser(Option& o) : basic_parser(o) {}
 
   // Return true on error.
-  auto parse(Option&, llvm::StringRef, llvm::StringRef arg,
-             std::string& value) -> bool {
+  auto parse(Option&, llvm::StringRef, llvm::StringRef arg, std::string& value)
+      -> bool {
     value = arg.str();
     return false;
   }
@@ -516,7 +522,8 @@ class parser<char> : public basic_parser<char> {
   parser(Option& o) : basic_parser(o) {}
 
   // Return true on error.
-  auto parse(Option&, llvm::StringRef, llvm::StringRef arg, char& value) -> bool {
+  auto parse(Option&, llvm::StringRef, llvm::StringRef arg, char& value)
+      -> bool {
     value = arg[0];
     return false;
   }
@@ -531,6 +538,49 @@ class parser<char> : public basic_parser<char> {
   void anchor() override;
 };
 
+//--------------------------------------------------
+// This collection of wrappers is the intermediary between class opt and class
+// parser to handle all the template nastiness.
+
+// This overloaded function is selected by the generic parser.
+template <class ParserClass, class DT>
+void printOptionDiff(const Option& O, const generic_parser_base& P, const DT& V,
+                     const OptionValue<DT>& Default, size_t GlobalWidth) {
+  OptionValue<DT> OV = V;
+  P.printOptionDiff(O, OV, Default, GlobalWidth);
+}
+
+// This is instantiated for basic parsers when the parsed value has a different
+// type than the option value. e.g. HelpPrinter.
+template <class ParserDT, class ValDT>
+struct OptionDiffPrinter {
+  void print(const Option& O, const parser<ParserDT>& P, const ValDT& /*V*/,
+             const OptionValue<ValDT>& /*Default*/, size_t GlobalWidth) {
+    P.printOptionNoValue(O, GlobalWidth);
+  }
+};
+
+// This is instantiated for basic parsers when the parsed value has the same
+// type as the option value.
+template <class DT>
+struct OptionDiffPrinter<DT, DT> {
+  void print(const Option& O, const parser<DT>& P, const DT& V,
+             const OptionValue<DT>& Default, size_t GlobalWidth) {
+    P.printOptionDiff(O, V, Default, GlobalWidth);
+  }
+};
+
+// This overloaded function is selected by the basic parser, which may parse a
+// different type than the option type.
+template <class ParserClass, class ValDT>
+void printOptionDiff(
+    const Option& O,
+    const basic_parser<typename ParserClass::parser_data_type>& P,
+    const ValDT& V, const OptionValue<ValDT>& Default, size_t GlobalWidth) {
+  OptionDiffPrinter<typename ParserClass::parser_data_type, ValDT> printer;
+  printer.print(O, static_cast<const ParserClass&>(P), V, Default, GlobalWidth);
+}
+
 }  // namespace Commandline
 
-#endif  // COMMANDLEINE_PARSER_H
+#endif  // COMMANDLINE_PARSER_H
