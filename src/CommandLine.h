@@ -1,7 +1,17 @@
 #ifndef COMMANDLINE_COMMANDLINE_H
 #define COMMANDLINE_COMMANDLINE_H
 
-#include "Option.h"
+#include "Alias.h"
+#include "Applicator.h"
+#include "Bits.h"
+#include "List.h"
+#include "ManagedStatic.h"
+#include "Opt.h"
+#include "OptionCategory.h"
+#include "OptionEnum.h"
+#include "OptionValue.h"
+#include "Parser.h"
+#include "SubCommand.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
